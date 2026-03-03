@@ -9,9 +9,13 @@ const PORT = process.env.PORT || 3000;
 
 console.log(`[SERVER] Puerto: ${PORT}`);
 console.log(`[SERVER] Entorno: ${process.env.NODE_ENV || 'development'}`);
+console.log(`[SERVER] Sirviendo archivos estáticos desde: ${path.join(__dirname, '..', 'public')}`);
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '1h',
+  etag: false
+}));
 
 function buildDefaultData() {
   const monthlyActuals = Array.from({ length: 12 }, () => 0);
@@ -165,8 +169,15 @@ app.put('/api/profile/:key', (req, res) => {
   return res.json({ ok: true, updatedAt: result.updatedAt });
 });
 
-app.use((_req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+// Manejador catch-all para SPA - sirve index.html
+app.use((_req, res, next) => {
+  const indexPath = path.join(__dirname, '..', 'public', 'index.html');
+  res.sendFile(indexPath, { maxAge: '1h' }, (err) => {
+    if (err) {
+      console.error('[SERVER] Error sirviendo index.html:', err.message);
+      res.status(500).send('Error interno del servidor');
+    }
+  });
 });
 
 const server = app.listen(PORT, () => {
