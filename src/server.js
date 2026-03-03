@@ -180,8 +180,9 @@ app.use((_req, res, next) => {
   });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`Ahorros app corriendo en http://localhost:${PORT}`);
+const HOST = '0.0.0.0'; // Escuchar en todas las interfaces (necesario para Railway)
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Ahorros app corriendo en http://${HOST}:${PORT}`);
   // Dar tiempo a que el servidor esté completamente listo
   setTimeout(() => {
     console.log('[SERVER] ✓ Servidor listo para recibir requests');
