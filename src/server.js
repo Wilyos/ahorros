@@ -91,7 +91,12 @@ function normalizePayload(payload) {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.status(200).json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+// Health check adicional en raíz (algunos orquestadores lo buscan aquí)
+app.get('/health', (_req, res) => {
+  res.status(200).send('OK');
 });
 
 app.get('/api/profile/:key', (req, res) => {
@@ -166,7 +171,15 @@ app.use((_req, res) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Ahorros app corriendo en http://localhost:${PORT}`);
+  // Dar tiempo a que el servidor esté completamente listo
+  setTimeout(() => {
+    console.log('[SERVER] ✓ Servidor listo para recibir requests');
+  }, 100);
 });
+
+// Configurar timeouts del servidor
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
