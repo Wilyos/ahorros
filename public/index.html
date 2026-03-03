@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestor de Ahorros</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <div class="header-top">
+        <h1>Gestor de Ahorros</h1>
+        <button id="darkModeToggle" class="dark-mode-btn" title="Alternar modo oscuro">🌙</button>
+      </div>
+
+      <section class="panel grid-2">
+        <label>
+          Código de perfil
+          <input id="profileKey" type="text" placeholder="ej: familia-garcia" />
+        </label>
+        <div class="actions">
+          <button id="loadBtn" type="button">Cargar</button>
+          <button id="newBtn" type="button">Nuevo perfil</button>
+          <button id="saveBtn" type="button">Guardar</button>
+        </div>
+
+        <label>
+          Nombre del plan
+          <input id="profileName" type="text" placeholder="Ahorro 2026" />
+        </label>
+        <div id="status" class="status">Sincronización pendiente.</div>
+      </section>
+
+      <section class="panel grid-4">
+        <label>
+          Monto inicial
+          <input id="initialAmount" type="number" min="0" step="100" />
+        </label>
+        <label>
+          Ahorro por mes
+          <input id="monthlySaving" type="number" min="0" step="100" />
+        </label>
+        <label>
+          Monto objetivo final
+          <input id="desiredTargetAmount" type="number" min="0" step="100" />
+        </label>
+        <label>
+          Aumento por monto
+          <input id="projectionStepAmount" type="number" min="100" step="100" />
+        </label>
+        <label>
+          Tope ahorro mensual
+          <input id="maxMonthlySavingCap" type="number" min="100" step="100" />
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Tabla de proyección</h2>
+        <div class="table-wrap">
+          <table id="projectionTable"></table>
+        </div>
+        <div id="projectionNote" class="projection-note"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Ahorro real por mes (automático)</h2>
+        <div id="actualInputs" class="months-grid"></div>
+      </section>
+
+      <section class="panel summary" id="summary"></section>
+
+      <section class="panel">
+        <h2>Progreso del plan</h2>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div id="progressText" class="progress-text"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
