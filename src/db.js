@@ -6,7 +6,17 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWA
 const dbPath = isProduction 
   ? '/tmp/data.sqlite' 
   : (process.env.DATABASE_PATH || path.join(__dirname, '..', 'data.sqlite'));
-const db = new Database(dbPath);
+
+console.log(`[DB] Inicializando base de datos en: ${dbPath} (${isProduction ? 'Producción' : 'Desarrollo'})`);
+
+let db;
+try {
+  db = new Database(dbPath);
+  console.log('[DB] Base de datos inicializada correctamente');
+} catch (err) {
+  console.error('[DB] Error al inicializar base de datos:', err.message);
+  throw err;
+}
 
 db.pragma('journal_mode = WAL');
 
@@ -17,6 +27,8 @@ db.exec(`
     updated_at TEXT NOT NULL
   )
 `);
+
+console.log('[DB] Tabla de perfiles lista');
 
 const getProfileStmt = db.prepare('SELECT data, updated_at FROM profiles WHERE key = ?');
 const upsertProfileStmt = db.prepare(`

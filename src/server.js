@@ -2,8 +2,13 @@ const express = require('express');
 const path = require('path');
 const { getProfile, saveProfile } = require('./db');
 
+console.log('[SERVER] Inicializando servidor...');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+console.log(`[SERVER] Puerto: ${PORT}`);
+console.log(`[SERVER] Entorno: ${process.env.NODE_ENV || 'development'}`);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -159,6 +164,34 @@ app.use((_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Ahorros app corriendo en http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM recibido, cerrando servidor...');
+  server.close(() => {
+    console.log('Servidor cerrado.');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT recibido, cerrando servidor...');
+  server.close(() => {
+    console.log('Servidor cerrado.');
+    process.exit(0);
+  });
+});
+
+// Capturar errores no manejados
+process.on('uncaughtException', (err) => {
+  console.error('Excepción no capturada:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Promise rechazada sin manejar:', reason);
+  process.exit(1);
 });
