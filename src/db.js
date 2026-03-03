@@ -1,8 +1,11 @@
 const path = require('path');
 const Database = require('better-sqlite3');
 
-// En Railway/producción usar /tmp; en desarrollo usar local
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'data.sqlite');
+// En Railway/producción usar /tmp (filesystem ephemeral); en desarrollo usar local
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME;
+const dbPath = isProduction 
+  ? '/tmp/data.sqlite' 
+  : (process.env.DATABASE_PATH || path.join(__dirname, '..', 'data.sqlite'));
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
