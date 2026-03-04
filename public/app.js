@@ -219,54 +219,46 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  const scenarioRows = scenarios
-    .map((scenario, scenarioIdx) => {
-      // Celdas de checkboxes para cada mes
-      const checkCells = Array.from({ length: 12 }, (_, monthIdx) => {
-        const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
-        const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
-        
-        return `
-          <td class="projection-check-cell">
-            <label class="projection-check-label">
-              <input 
-                data-scenario-idx="${scenarioIdx}" 
-                data-month-idx="${monthIdx}" 
-                type="checkbox" 
-                ${checked ? 'checked' : ''} 
-                ${locked ? 'disabled' : ''} 
-              />
-              <span>${locked ? '🔒' : '✓'}</span>
-            </label>
-          </td>
-        `;
-      }).join('');
+  // Construir tabla de MESES en columnas, con radio buttons para cada escenario
+  let tableHtml = '<thead><tr><th>Monto Mensual</th>';
+  tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Mes ${i + 1}</th>`).join('');
+  tableHtml += '</tr></thead><tbody>';
 
-      const rowLabel = scenarioIdx === 0 
-        ? `${formatCurrency(scenario.monthlySaving)} (base)` 
-        : formatCurrency(scenario.monthlySaving);
+  scenarios.forEach((scenario, scenarioIdx) => {
+    const rowLabel = scenarioIdx === 0 
+      ? `${formatCurrency(scenario.monthlySaving)} (base)` 
+      : formatCurrency(scenario.monthlySaving);
+    
+    tableHtml += `<tr><td class="scenario-label">${rowLabel}</td>`;
+    
+    for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
+      const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
+      const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
+      const inputId = `radio_${scenarioIdx}_${monthIdx}`;
       
-      return `
-        <tr>
-          <td>${rowLabel}</td>
-          ${checkCells}
-        </tr>
+      tableHtml += `
+        <td class="projection-check-cell">
+          <label class="projection-check-label">
+            <input 
+              id="${inputId}"
+              type="radio"
+              name="month_${monthIdx}"
+              data-scenario-idx="${scenarioIdx}" 
+              data-month-idx="${monthIdx}" 
+              ${checked ? 'checked' : ''} 
+              ${locked ? 'disabled' : ''} 
+            />
+            <span class="radio-value">${formatCurrency(scenario.monthlySaving)}</span>
+            <span class="lock-indicator">${locked ? '🔒' : ''}</span>
+          </label>
+        </td>
       `;
-    })
-    .join('');
+    }
+    tableHtml += '</tr>';
+  });
 
-  const thead = `
-    <thead>
-      <tr>
-        <th>Monto/mes</th>
-        ${Array.from({ length: 12 }, (_, idx) => `<th>Mes ${idx + 1}</th>`).join('')}
-      </tr>
-    </thead>
-  `;
-
-  const tbody = `<tbody>${scenarioRows}</tbody>`;
-  
-  els.projectionTable.innerHTML = `${thead}${tbody}`;
+  tableHtml += '</tbody>';
+  els.projectionTable.innerHTML = tableHtml;
 
   // Mensaje sobre el objetivo
   if (projectionData.reachedTarget) {
@@ -275,17 +267,23 @@ function renderProjectionTable() {
     els.projectionNote.textContent = `Generando escenarios respetando tope de ${formatCurrency(projectionData.maxCap)} para alcanzar objetivo de ${formatCurrency(projectionData.targetAmount)}.`;
   }
 
-  // Event listeners para los checkboxes
-  els.projectionTable.querySelectorAll('input[data-scenario-idx][data-month-idx]').forEach((input) => {
+  // Event listeners para los radio buttons
+  els.projectionTable.querySelectorAll('input[type="radio"][data-scenario-idx][data-month-idx]').forEach((input) => {
     input.addEventListener('change', (event) => {
       const scenarioIdx = Number(event.target.dataset.scenarioIdx);
       const monthIdx = Number(event.target.dataset.monthIdx);
       
+      // Limpiar todos los checkboxes de este mes
+      state.scenarioChecks.forEach((row, idx) => {
+        if (row) row[monthIdx] = false;
+      });
+      
+      // Marcar solo el escenario seleccionado para este mes
       if (!state.scenarioChecks[scenarioIdx]) {
         state.scenarioChecks[scenarioIdx] = Array.from({ length: 12 }, () => false);
       }
+      state.scenarioChecks[scenarioIdx][monthIdx] = true;
       
-      state.scenarioChecks[scenarioIdx][monthIdx] = Boolean(event.target.checked);
       recalculateMonthlyActualsFromChecks();
       renderMonthlyActualInputs();
       renderSummary();
