@@ -141,30 +141,17 @@ function getProjectionScenarios() {
     state.initialAmount + baseMonthlySaving * state.targetMonths,
     0
   );
-  let stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
+  const stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
   const scenarios = [];
-
-  // Calcular el monto mensual MÍNIMO necesario para alcanzar el objetivo en 12 meses
-  const minMonthlySavingNeeded = Math.max(
-    baseMonthlySaving,
-    Math.ceil((targetAmount - state.initialAmount) / state.targetMonths)
-  );
-
-  // Si el paso es muy pequeño y generaría demasiadas filas, aumentarlo automáticamente
-  const estimatedRowsNeeded = Math.ceil((minMonthlySavingNeeded - baseMonthlySaving) / stepAmount) + 1;
-  const targetRowsCount = 12; // Generar aproximadamente este número de filas útiles
-  
-  if (estimatedRowsNeeded > targetRowsCount && stepAmount < minMonthlySavingNeeded) {
-    stepAmount = Math.ceil((minMonthlySavingNeeded - baseMonthlySaving) / targetRowsCount);
-  }
 
   let currentMonthlySaving = baseMonthlySaving;
   let isInCapPhase = false;
   let scenariosGenerated = 0;
+  const maxRowsLimit = 15; // Límite máximo de filas para no generar demasiadas
 
-  // Generar escenarios hasta pasar el monto necesario
-  while (scenariosGenerated < 2000) {
-    // Si el incremento nos llevaría al tope, entrar en fase de tope
+  // Generar escenarios hasta alcanzar objetivo, tope o límite de filas
+  while (scenariosGenerated < maxRowsLimit) {
+    // Si llegamos al tope, cambiar a fase de tope
     if (currentMonthlySaving >= maxCap && !isInCapPhase) {
       isInCapPhase = true;
       currentMonthlySaving = maxCap;
@@ -178,6 +165,38 @@ function getProjectionScenarios() {
     });
 
     const finalAmount = values[state.targetMonths - 1];
+
+    // Si alcanzamos el objetivo, parar
+    if (finalAmount >= targetAmount) {
+      break;
+    }
+
+    // Si no estamos en fase de tope, incrementar por el stepAmount
+    if (!isInCapPhase) {
+      currentMonthlySaving += stepAmount;
+      // Verificar si el siguiente valor superaría el tope
+      if (currentMonthlySaving > maxCap) {
+        isInCapPhase = true;
+        currentMonthlySaving = maxCap;
+      }
+    } else {
+      // Si estamos en fase de tope y ya tenemos una fila con el tope, parar
+      break;
+    }
+
+    scenariosGenerated += 1;
+  }
+
+  const lastScenario = scenarios[scenarios.length - 1];
+  const reachedTarget = Boolean(lastScenario) && lastScenario.values[state.targetMonths - 1] >= targetAmount;
+
+  return {
+    scenarios,
+    reachedTarget,
+    maxCap,
+    targetAmount,
+    effectiveStepAmount: stepAmount
+  };
 
     // Si alcanzamos el objetivo, parar (ya está >0 para margen)
     if (finalAmount >= targetAmount) {
@@ -450,6 +469,7 @@ async function loadProfile() {
   state.key = key;
 
   syncInputsFromState();
+  updateConfigLockState();
   renderProjectionTable();
   renderMonthlyActualInputs();
   renderSummary();
