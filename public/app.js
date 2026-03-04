@@ -63,61 +63,49 @@ function sanitizeNumber(value, fallback = 0, min = 0) {
   return Math.max(min, parsed);
 }
 
-function normalizeMonthlyArrays() {
-  // Asegurar que scenarioChecks y scenarioLocked sean matrices válidas
-  if (!Array.isArray(state.scenarioChecks)) {
-    state.scenarioChecks = [];
+// Genera la secuencia plana de valores: [500, 1000, 1500, ..., 200000]
+function getFlatCells() {
+  const maxCap = getMaxCapValue();
+  const base = sanitizeNumber(state.monthlySaving, 500, 1);
+  const step = sanitizeNumber(state.projectionStepAmount, 500, 1);
+  const cells = [];
+  let value = base;
+  while (value <= maxCap) {
+    cells.push(value);
+    value += step;
   }
-  if (!Array.isArray(state.scenarioLocked)) {
-    state.scenarioLocked = [];
-  }
-  if (!Array.isArray(state.monthlyActuals)) {
-    state.monthlyActuals = Array.from({ length: 12 }, () => 0);
-  }
+  return cells;
+}
 
+function normalizeMonthlyArrays() {
+  if (!Array.isArray(state.scenarioChecks)) state.scenarioChecks = [];
+  if (!Array.isArray(state.scenarioLocked)) state.scenarioLocked = [];
   // Normalizar cada fila de la matriz
   state.scenarioChecks = state.scenarioChecks.map((row) => {
     if (!Array.isArray(row)) return Array.from({ length: 12 }, () => false);
     return Array.from({ length: 12 }, (_, idx) => Boolean(row[idx]));
   });
-
   state.scenarioLocked = state.scenarioLocked.map((row) => {
     if (!Array.isArray(row)) return Array.from({ length: 12 }, () => false);
     return Array.from({ length: 12 }, (_, idx) => Boolean(row[idx]));
   });
-
-  state.monthlyActuals = Array.from({ length: 12 }, (_, idx) => sanitizeNumber(state.monthlyActuals[idx], 0));
 }
 
 function recalculateMonthlyActualsFromChecks() {
-  // Obtener scenarios actuales para tener los montos mensuales
-  const projectionData = getProjectionScenarios();
-  const scenarios = projectionData.scenarios;
-
-  // Asegurar que las matrices de checks tienen el tamaño correcto
-  while (state.scenarioChecks.length < scenarios.length) {
-    state.scenarioChecks.push(Array.from({ length: 12 }, () => false));
-  }
-  while (state.scenarioLocked.length < scenarios.length) {
-    state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
-  }
-
-  // Calcular monthlyActuals: para cada mes, sumar los montos de todos los escenarios que tienen check marcado
-  state.monthlyActuals = Array.from({ length: 12 }, (_, monthIdx) => {
-    let monthTotal = 0;
-
-    scenarios.forEach((scenario, scenarioIdx) => {
-      const isChecked = state.scenarioChecks[scenarioIdx]?.[monthIdx] || false;
-      const isLocked = state.scenarioLocked[scenarioIdx]?.[monthIdx] || false;
-
-      if (isChecked || isLocked) {
-        // Si está marcado o bloqueado, sumar el monto mensual de este escenario
-        monthTotal += scenario.monthlySaving;
-      }
-    });
-
-    return monthTotal;
+  // El total ahorrado = suma de valores de todas las celdas marcadas
+  // Se guarda en monthlyActuals[0] para simplicidad
+  const cells = getFlatCells();
+  let total = 0;
+  cells.forEach((cellValue, cellIdx) => {
+    const rowIdx = Math.floor(cellIdx / 12);
+    const colIdx = cellIdx % 12;
+    const isChecked = state.scenarioChecks[rowIdx]?.[colIdx] || false;
+    const isLocked = state.scenarioLocked[rowIdx]?.[colIdx] || false;
+    if (isChecked || isLocked) total += cellValue;
   });
+  state.totalSaved = total;
+  // Mantener monthlyActuals como array para compatibilidad
+  state.monthlyActuals = Array.from({ length: 12 }, () => 0);
 }
 
 function getMaxCapValue() {
@@ -134,116 +122,81 @@ function getProjectionScenarios() {
   const maxCap = getMaxCapValue();
   const baseMonthlySaving = sanitizeNumber(state.monthlySaving, 500, 0);
   const stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
-  const scenarios = [];
-
-  // Generar incrementos hasta que la última celda (Abono 12) alcance maxCap
-  let currentMonthlySaving = baseMonthlySaving;
-  while (true) {
-    const monthlySavingToUse = Math.min(currentMonthlySaving, maxCap);
-    const values = projectedByMonth(monthlySavingToUse);
-    scenarios.push({
-      monthlySaving: monthlySavingToUse,
-      values
-    });
-
-    // Verificar si la última celda (Abono 12, índice 11) alcanzó o superó maxCap
-    const lastCellValue = monthlySavingToUse + (stepAmount * 11);
-    if (lastCellValue >= maxCap) {
-      break;
-    }
-
-    currentMonthlySaving += stepAmount;
-  }
-
-  return {
-    scenarios,
-    maxCap,
-    stepAmount,
-    baseMonthlySaving
-  };
-}
-
-function projectedByMonth(monthlySaving) {
-  const values = [];
-  for (let month = 1; month <= 12; month += 1) {
-    values.push(state.initialAmount + monthlySaving * month);
-  }
-  return values;
+  return { maxCap, stepAmount, baseMonthlySaving };
 }
 
 function renderProjectionTable() {
-  const projectionData = getProjectionScenarios();
-  const scenarios = projectionData.scenarios;
-  const stepAmount = projectionData.stepAmount;
+  const cells = getFlatCells();
+  const { stepAmount, baseMonthlySaving, maxCap } = getProjectionScenarios();
+  const numRows = Math.ceil(cells.length / 12);
 
-  // Asegurar que las matrices de checks tienen el tamaño correcto
-  while (state.scenarioChecks.length < scenarios.length) {
+  // Asegurar que la matriz de checks tiene el tamaño correcto
+  while (state.scenarioChecks.length < numRows) {
     state.scenarioChecks.push(Array.from({ length: 12 }, () => false));
   }
-  while (state.scenarioLocked.length < scenarios.length) {
+  while (state.scenarioLocked.length < numRows) {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla: FILAS = Incrementos | COLUMNAS = Aboños con incrementos de stepAmount
-  let tableHtml = '<thead><tr><th>Incremento/Abono</th>';
+  // Tabla sin encabezado de fila (solo valores en cuadrícula continua)
+  let tableHtml = '<thead><tr><th>#</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Abono ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
-  // Para cada monto (escenario), mostrar valores incrementando de stepAmount en cada abono
-  scenarios.forEach((scenario, scenarioIdx) => {
-    const monthlyLabel = scenarioIdx === 0 
-      ? `${formatCurrency(scenario.monthlySaving)} (base)` 
-      : formatCurrency(scenario.monthlySaving);
-    
-    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td>`;
-    
-    for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
-      const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
-      const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
-      const checkboxId = `check_${scenarioIdx}_${monthIdx}`;
-      
-      // Valor: monto base + (stepAmount × número de aboños)
-      // Todos filan incrementan de forma lineal con el mismo stepAmount
-      const cellValue = scenario.monthlySaving + (stepAmount * monthIdx);
-      
+  for (let rowIdx = 0; rowIdx < numRows; rowIdx++) {
+    const firstCellIdx = rowIdx * 12;
+    const firstValue = cells[firstCellIdx];
+    const lastValue = cells[Math.min(firstCellIdx + 11, cells.length - 1)];
+    const rowLabel = firstValue === lastValue
+      ? formatCurrency(firstValue)
+      : `${formatCurrency(firstValue)} – ${formatCurrency(lastValue)}`;
+
+    tableHtml += `<tr><td class="scenario-label">${rowLabel}</td>`;
+
+    for (let colIdx = 0; colIdx < 12; colIdx++) {
+      const cellIdx = rowIdx * 12 + colIdx;
+      if (cellIdx >= cells.length) {
+        tableHtml += '<td></td>';
+        continue;
+      }
+      const cellValue = cells[cellIdx];
+      const checked = Boolean(state.scenarioChecks[rowIdx]?.[colIdx]);
+      const locked = Boolean(state.scenarioLocked[rowIdx]?.[colIdx]);
+      const checkboxId = `check_${rowIdx}_${colIdx}`;
+
       tableHtml += `
         <td class="projection-check-cell">
           <label class="projection-check-label">
-            <input 
+            <input
               id="${checkboxId}"
               type="checkbox"
-              data-scenario-idx="${scenarioIdx}" 
-              data-month-idx="${monthIdx}" 
-              ${checked ? 'checked' : ''} 
-              ${locked ? 'disabled' : ''} 
+              data-row-idx="${rowIdx}"
+              data-col-idx="${colIdx}"
+              ${checked ? 'checked' : ''}
+              ${locked ? 'disabled' : ''}
             />
             <span class="radio-value">${formatCurrency(cellValue)}</span>
             <span class="lock-indicator">${locked ? '🔒' : ''}</span>
           </label>
-        </td>
-      `;
+        </td>`;
     }
     tableHtml += '</tr>';
-  });
+  }
 
   tableHtml += '</tbody>';
   els.projectionTable.innerHTML = tableHtml;
 
-  // Mensaje sobre la configuración
-  const msgText = `Generando incrementos de ${formatCurrency(stepAmount)} desde ${formatCurrency(projectionData.baseMonthlySaving)} hasta ${formatCurrency(projectionData.maxCap)}.`;
-  els.projectionNote.textContent = msgText;
+  els.projectionNote.textContent = `Incrementos de ${formatCurrency(stepAmount)} desde ${formatCurrency(baseMonthlySaving)} hasta ${formatCurrency(maxCap)}.`;
 
-  // Event listeners para los checkboxes
-  els.projectionTable.querySelectorAll('input[type="checkbox"][data-scenario-idx][data-month-idx]').forEach((input) => {
+  // Event listeners
+  els.projectionTable.querySelectorAll('input[type="checkbox"]').forEach((input) => {
     input.addEventListener('change', (event) => {
-      const scenarioIdx = Number(event.target.dataset.scenarioIdx);
-      const monthIdx = Number(event.target.dataset.monthIdx);
-      
-      if (!state.scenarioChecks[scenarioIdx]) {
-        state.scenarioChecks[scenarioIdx] = Array.from({ length: 12 }, () => false);
+      const rowIdx = Number(event.target.dataset.rowIdx);
+      const colIdx = Number(event.target.dataset.colIdx);
+      if (!state.scenarioChecks[rowIdx]) {
+        state.scenarioChecks[rowIdx] = Array.from({ length: 12 }, () => false);
       }
-      state.scenarioChecks[scenarioIdx][monthIdx] = Boolean(event.target.checked);
-      
+      state.scenarioChecks[rowIdx][colIdx] = Boolean(event.target.checked);
       recalculateMonthlyActualsFromChecks();
       renderMonthlyActualInputs();
       renderSummary();
@@ -252,53 +205,48 @@ function renderProjectionTable() {
 }
 
 function renderMonthlyActualInputs() {
-  els.actualInputs.innerHTML = Array.from({ length: 12 }, (_, monthIdx) => {
-    const current = state.monthlyActuals[monthIdx] || 0;
-    
-    // Contar cuántos escenarios tienen check marcado para este mes
-    let checkedCount = 0;
-    let hasLocked = false;
-    
-    state.scenarioChecks.forEach((row, scenarioIdx) => {
-      if (row?.[monthIdx]) checkedCount++;
-    });
-    
-    state.scenarioLocked.forEach((row, scenarioIdx) => {
-      if (row?.[monthIdx]) {
-        hasLocked = true;
-        checkedCount++;
-      }
-    });
+  const cells = getFlatCells();
+  let checkedCount = 0;
+  let lockedCount = 0;
+  let total = 0;
 
-    return `
-      <article class="month-input">
-        <div class="month-header">
-          <span>Abono ${monthIdx + 1}</span>
-          <span class="month-lock">${hasLocked ? '🔒 Bloqueado' : checkedCount > 0 ? `${checkedCount} check(s)` : 'Sin marcar'}</span>
-        </div>
-        <div class="month-value">${formatCurrency(current)}</div>
-        <div class="month-state">${checkedCount > 0 ? `${checkedCount} escenario(s) seleccionado(s)` : 'Sin selección'}</div>
-      </article>
-    `;
-  }).join('');
+  cells.forEach((cellValue, cellIdx) => {
+    const rowIdx = Math.floor(cellIdx / 12);
+    const colIdx = cellIdx % 12;
+    const isChecked = state.scenarioChecks[rowIdx]?.[colIdx] || false;
+    const isLocked = state.scenarioLocked[rowIdx]?.[colIdx] || false;
+    if (isChecked) { checkedCount++; total += cellValue; }
+    if (isLocked) { lockedCount++; total += cellValue; }
+  });
+
+  els.actualInputs.innerHTML = `
+    <article class="month-input" style="grid-column: 1/-1">
+      <div class="month-header">
+        <span>Aboños marcados</span>
+        <span class="month-lock">${lockedCount > 0 ? `🔒 ${lockedCount} bloqueados` : ''}</span>
+      </div>
+      <div class="month-value">${formatCurrency(total)}</div>
+      <div class="month-state">${checkedCount + lockedCount} casilla(s) seleccionada(s)</div>
+    </article>
+  `;
 }
 
 function renderSummary() {
-  const totalSaved = state.monthlyActuals.reduce((acc, value) => acc + value, 0);
-  
-  // Contar meses que tienen al menos un check marcado
-  const completedMonths = state.monthlyActuals.filter(value => value > 0).length;
+  const cells = getFlatCells();
+  let totalSaved = 0;
+  let totalTarget = 0;
 
-  // Calcular el objetivo automáticamente: suma de TODAS las celdas de la tabla
-  const projectionData = getProjectionScenarios();
-  const stepAmount = projectionData.stepAmount;
-  let targetFinalAmount = 0;
-  projectionData.scenarios.forEach((scenario) => {
-    for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
-      targetFinalAmount += scenario.monthlySaving + (stepAmount * monthIdx);
-    }
+  cells.forEach((cellValue, cellIdx) => {
+    const rowIdx = Math.floor(cellIdx / 12);
+    const colIdx = cellIdx % 12;
+    const isChecked = state.scenarioChecks[rowIdx]?.[colIdx] || false;
+    const isLocked = state.scenarioLocked[rowIdx]?.[colIdx] || false;
+    if (isChecked || isLocked) totalSaved += cellValue;
+    totalTarget += cellValue;
   });
 
+  const completedMonths = 0; // ya no aplica por mes
+  const targetFinalAmount = totalTarget;
   const pending = Math.max(0, targetFinalAmount - totalSaved);
   const requiredContribution = targetFinalAmount;
   const progressPercent = requiredContribution === 0
