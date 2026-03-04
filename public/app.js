@@ -171,6 +171,7 @@ function projectedByMonth(monthlySaving) {
 function renderProjectionTable() {
   const projectionData = getProjectionScenarios();
   const scenarios = projectionData.scenarios;
+  const stepAmount = projectionData.stepAmount;
 
   // Asegurar que las matrices de checks tienen el tamaño correcto
   while (state.scenarioChecks.length < scenarios.length) {
@@ -180,12 +181,12 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla: FILAS = Incrementos | COLUMNAS = Aboños con valores acumulativos
+  // Construir tabla: FILAS = Incrementos | COLUMNAS = Aboños con incrementos de stepAmount
   let tableHtml = '<thead><tr><th>Incremento/Abono</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Abono ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
-  // Para cada monto (escenario), mostrar valores acumulativos para cada aboño
+  // Para cada monto (escenario), mostrar valores incrementando de stepAmount en cada abono
   scenarios.forEach((scenario, scenarioIdx) => {
     const monthlyLabel = scenarioIdx === 0 
       ? `${formatCurrency(scenario.monthlySaving)} (base)` 
@@ -198,8 +199,9 @@ function renderProjectionTable() {
       const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
       const checkboxId = `check_${scenarioIdx}_${monthIdx}`;
       
-      // Valor ACUMULADO: monto mensual × (numero de aboños incluyendo este)
-      const accumulatedValue = scenario.monthlySaving * (monthIdx + 1) + state.initialAmount;
+      // Valor: monto base + (stepAmount × número de aboños)
+      // Todos filan incrementan de forma lineal con el mismo stepAmount
+      const cellValue = scenario.monthlySaving + (stepAmount * monthIdx);
       
       tableHtml += `
         <td class="projection-check-cell">
@@ -212,7 +214,7 @@ function renderProjectionTable() {
               ${checked ? 'checked' : ''} 
               ${locked ? 'disabled' : ''} 
             />
-            <span class="radio-value">${formatCurrency(accumulatedValue)}</span>
+            <span class="radio-value">${formatCurrency(cellValue)}</span>
             <span class="lock-indicator">${locked ? '🔒' : ''}</span>
           </label>
         </td>
@@ -225,7 +227,7 @@ function renderProjectionTable() {
   els.projectionTable.innerHTML = tableHtml;
 
   // Mensaje sobre la configuración
-  const msgText = `Generando incrementos de ${formatCurrency(projectionData.stepAmount)} desde ${formatCurrency(projectionData.baseMonthlySaving)} hasta ${formatCurrency(projectionData.maxCap)}.`;
+  const msgText = `Generando incrementos de ${formatCurrency(stepAmount)} desde ${formatCurrency(projectionData.baseMonthlySaving)} hasta ${formatCurrency(projectionData.maxCap)}.`;
   els.projectionNote.textContent = msgText;
 
   // Event listeners para los checkboxes
