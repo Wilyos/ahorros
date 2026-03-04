@@ -6,13 +6,20 @@ console.log('[SERVER] Inicializando servidor...');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const INDEX_PATH = path.join(PUBLIC_DIR, 'index.html');
 
 console.log(`[SERVER] Puerto: ${PORT}`);
 console.log(`[SERVER] Entorno: ${process.env.NODE_ENV || 'development'}`);
-console.log(`[SERVER] Sirviendo archivos estáticos desde: ${path.join(__dirname, '..', 'public')}`);
+console.log(`[SERVER] Sirviendo archivos estáticos desde: ${PUBLIC_DIR}`);
+
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, '..', 'public'), {
+app.use(express.static(PUBLIC_DIR, {
   maxAge: '1h',
   etag: false
 }));
@@ -103,6 +110,19 @@ app.get('/health', (_req, res) => {
   res.status(200).send('OK');
 });
 
+app.get('/favicon.ico', (_req, res) => {
+  res.status(204).end();
+});
+
+app.get('/', (_req, res, next) => {
+  res.sendFile(INDEX_PATH, { maxAge: '1h' }, (err) => {
+    if (err) {
+      console.error('[SERVER] Error sirviendo /:', err.message);
+      next(err);
+    }
+  });
+});
+
 app.get('/api/profile/:key', (req, res) => {
   const key = String(req.params.key || '').trim();
 
@@ -171,13 +191,20 @@ app.put('/api/profile/:key', (req, res) => {
 
 // Manejador catch-all para SPA - sirve index.html
 app.use((_req, res, next) => {
-  const indexPath = path.join(__dirname, '..', 'public', 'index.html');
-  res.sendFile(indexPath, { maxAge: '1h' }, (err) => {
+  res.sendFile(INDEX_PATH, { maxAge: '1h' }, (err) => {
     if (err) {
       console.error('[SERVER] Error sirviendo index.html:', err.message);
-      res.status(500).send('Error interno del servidor');
+      next(err);
     }
   });
+});
+
+app.use((err, _req, res, _next) => {
+  console.error('[SERVER] Error no manejado en request:', err?.message || err);
+  if (res.headersSent) {
+    return;
+  }
+  res.status(500).json({ error: 'Error interno del servidor' });
 });
 
 const HOST = '0.0.0.0'; // Escuchar en todas las interfaces (necesario para Railway)
@@ -216,7 +243,6 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('Promise rechazada sin manejar:', reason);
-  process.exit(1);
 });
