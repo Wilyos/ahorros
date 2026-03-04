@@ -2,7 +2,6 @@ const state = {
   key: '',
   profileName: '',
   initialAmount: 500,
-  monthlySaving: 500,
   projectionStepAmount: 500,
   maxMonthlySavingCap: 200000,
   targetMonths: 12,
@@ -16,7 +15,6 @@ const els = {
   profileKey: document.getElementById('profileKey'),
   profileName: document.getElementById('profileName'),
   initialAmount: document.getElementById('initialAmount'),
-  monthlySaving: document.getElementById('monthlySaving'),
   projectionStepAmount: document.getElementById('projectionStepAmount'),
   maxMonthlySavingCap: document.getElementById('maxMonthlySavingCap'),
   projectionTable: document.getElementById('projectionTable'),
@@ -36,7 +34,6 @@ function getDefaultState() {
     key: '',
     profileName: '',
     initialAmount: 500,
-    monthlySaving: 500,
     projectionStepAmount: 500,
     maxMonthlySavingCap: 200000,
     targetMonths: 12,
@@ -66,8 +63,8 @@ function sanitizeNumber(value, fallback = 0, min = 0) {
 // Genera la secuencia plana de valores: [500, 1000, 1500, ..., 200000]
 function getFlatCells() {
   const maxCap = getMaxCapValue();
-  const base = sanitizeNumber(state.monthlySaving, 500, 1);
   const step = sanitizeNumber(state.projectionStepAmount, 500, 1);
+  const base = step;
   const cells = [];
   let value = base;
   while (value <= maxCap) {
@@ -112,16 +109,10 @@ function getMaxCapValue() {
   return sanitizeNumber(state.maxMonthlySavingCap, 200000, 100);
 }
 
-function getEffectiveMonthlySaving() {
-  const maxCap = getMaxCapValue();
-  const saving = sanitizeNumber(state.monthlySaving, 500, 0);
-  return Math.min(saving, maxCap);
-}
-
 function getProjectionScenarios() {
   const maxCap = getMaxCapValue();
-  const baseMonthlySaving = sanitizeNumber(state.monthlySaving, 500, 0);
   const stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
+  const baseMonthlySaving = stepAmount;
   return { maxCap, stepAmount, baseMonthlySaving };
 }
 
@@ -282,7 +273,6 @@ function renderSummary() {
 
 function updateConfigLockState() {
   const locked = Boolean(state.configLocked);
-  els.monthlySaving.disabled = locked;
   els.projectionStepAmount.disabled = locked;
   els.maxMonthlySavingCap.disabled = locked;
 }
@@ -291,7 +281,6 @@ function bindGeneralInputs() {
   const map = [
     ['profileName', 'profileName'],
     ['initialAmount', 'initialAmount'],
-    ['monthlySaving', 'monthlySaving'],
     ['projectionStepAmount', 'projectionStepAmount'],
     ['maxMonthlySavingCap', 'maxMonthlySavingCap']
   ];
@@ -316,7 +305,6 @@ function bindGeneralInputs() {
 function syncInputsFromState() {
   els.profileName.value = state.profileName;
   els.initialAmount.value = state.initialAmount;
-  els.monthlySaving.value = state.monthlySaving;
   els.projectionStepAmount.value = state.projectionStepAmount;
   els.maxMonthlySavingCap.value = state.maxMonthlySavingCap;
   updateConfigLockState();
@@ -376,7 +364,6 @@ async function saveProfile() {
   const payload = {
     profileName: state.profileName,
     initialAmount: sanitizeNumber(state.initialAmount, 500),
-    monthlySaving: sanitizeNumber(state.monthlySaving, 500),
     projectionStepAmount: sanitizeNumber(state.projectionStepAmount, 500, 100),
     maxMonthlySavingCap: getMaxCapValue(),
     targetMonths: 12,
