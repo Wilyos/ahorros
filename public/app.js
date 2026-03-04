@@ -139,15 +139,21 @@ function getProjectionScenarios() {
   const stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
   const scenarios = [];
 
-  // Generar TODOS los incrementos desde base hasta máximo
+  // Generar incrementos hasta que la última celda (Abono 12) alcance maxCap
   let currentMonthlySaving = baseMonthlySaving;
-  while (currentMonthlySaving <= maxCap) {
+  while (true) {
     const monthlySavingToUse = Math.min(currentMonthlySaving, maxCap);
     const values = projectedByMonth(monthlySavingToUse);
     scenarios.push({
       monthlySaving: monthlySavingToUse,
       values
     });
+
+    // Verificar si la última celda (Abono 12, índice 11) alcanzó o superó maxCap
+    const lastCellValue = monthlySavingToUse + (stepAmount * 11);
+    if (lastCellValue >= maxCap) {
+      break;
+    }
 
     currentMonthlySaving += stepAmount;
   }
