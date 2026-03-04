@@ -197,36 +197,6 @@ function getProjectionScenarios() {
     targetAmount,
     effectiveStepAmount: stepAmount
   };
-
-    // Si alcanzamos el objetivo, parar (ya está >0 para margen)
-    if (finalAmount >= targetAmount) {
-      break;
-    }
-
-    // Si no estamos en fase de tope, incrementar
-    if (!isInCapPhase) {
-      currentMonthlySaving += stepAmount;
-      // Verificar si el siguiente valor superaría el tope
-      if (currentMonthlySaving > maxCap) {
-        isInCapPhase = true;
-        currentMonthlySaving = maxCap;
-      }
-    }
-    // Si estamos en fase de tope y ya tenemos al menos 1 opción, paramos
-
-    scenariosGenerated += 1;
-  }
-
-  const lastScenario = scenarios[scenarios.length - 1];
-  const reachedTarget = Boolean(lastScenario) && lastScenario.values[state.targetMonths - 1] >= targetAmount;
-
-  return {
-    scenarios,
-    reachedTarget,
-    maxCap,
-    targetAmount,
-    effectiveStepAmount: stepAmount
-  };
 }
 
 function projectedByMonth(monthlySaving) {
