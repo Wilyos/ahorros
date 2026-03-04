@@ -18,9 +18,20 @@ app.use((req, _res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  const noCachePaths = req.path === '/' || req.path === '/index.html' || req.path.endsWith('.js') || req.path.endsWith('.css');
+  if (noCachePaths) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+  }
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(PUBLIC_DIR, {
-  maxAge: '1h',
+  maxAge: 0,
   etag: false
 }));
 
@@ -115,7 +126,7 @@ app.get('/favicon.ico', (_req, res) => {
 });
 
 app.get('/', (_req, res, next) => {
-  res.sendFile(INDEX_PATH, { maxAge: '1h' }, (err) => {
+  res.sendFile(INDEX_PATH, { maxAge: 0 }, (err) => {
     if (err) {
       console.error('[SERVER] Error sirviendo /:', err.message);
       next(err);
@@ -191,7 +202,7 @@ app.put('/api/profile/:key', (req, res) => {
 
 // Manejador catch-all para SPA - sirve index.html
 app.use((_req, res, next) => {
-  res.sendFile(INDEX_PATH, { maxAge: '1h' }, (err) => {
+  res.sendFile(INDEX_PATH, { maxAge: 0 }, (err) => {
     if (err) {
       console.error('[SERVER] Error sirviendo index.html:', err.message);
       next(err);
