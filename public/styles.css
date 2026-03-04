@@ -36,7 +36,7 @@ body {
 .container {
   max-width: 1200px;
   margin: 24px auto;
-  padding: 0 16px 32px;
+  padding: 0 4px 32px;
 }
 
 .header-top {
@@ -48,15 +48,15 @@ body {
 
 h1,
 h2 {
-  margin: 0 0 12px;
+  margin: 0 0 6px;
 }
 
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  padding: 14px;
-  margin-top: 14px;
+  padding: 8px;
+  margin-top: 8px;
   transition: background-color 0.3s, border-color 0.3s;
 }
 
