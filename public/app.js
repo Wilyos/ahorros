@@ -3,7 +3,6 @@ const state = {
   profileName: '',
   initialAmount: 500,
   monthlySaving: 500,
-  desiredTargetAmount: 6500,
   projectionStepAmount: 500,
   maxMonthlySavingCap: 200000,
   targetMonths: 12,
@@ -18,7 +17,6 @@ const els = {
   profileName: document.getElementById('profileName'),
   initialAmount: document.getElementById('initialAmount'),
   monthlySaving: document.getElementById('monthlySaving'),
-  desiredTargetAmount: document.getElementById('desiredTargetAmount'),
   projectionStepAmount: document.getElementById('projectionStepAmount'),
   maxMonthlySavingCap: document.getElementById('maxMonthlySavingCap'),
   projectionTable: document.getElementById('projectionTable'),
@@ -39,7 +37,6 @@ function getDefaultState() {
     profileName: '',
     initialAmount: 500,
     monthlySaving: 500,
-    desiredTargetAmount: 6500,
     projectionStepAmount: 500,
     maxMonthlySavingCap: 200000,
     targetMonths: 12,
@@ -291,14 +288,19 @@ function renderSummary() {
   
   // Contar meses que tienen al menos un check marcado
   const completedMonths = state.monthlyActuals.filter(value => value > 0).length;
-  
-  const targetFinalAmount = sanitizeNumber(
-    state.desiredTargetAmount,
-    state.initialAmount + state.monthlySaving * state.targetMonths,
-    0
-  );
-  const pending = Math.max(0, targetFinalAmount - (state.initialAmount + totalSaved));
-  const requiredContribution = Math.max(0, targetFinalAmount - state.initialAmount);
+
+  // Calcular el objetivo automáticamente: suma de TODAS las celdas de la tabla
+  const projectionData = getProjectionScenarios();
+  const stepAmount = projectionData.stepAmount;
+  let targetFinalAmount = 0;
+  projectionData.scenarios.forEach((scenario) => {
+    for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
+      targetFinalAmount += scenario.monthlySaving + (stepAmount * monthIdx);
+    }
+  });
+
+  const pending = Math.max(0, targetFinalAmount - totalSaved);
+  const requiredContribution = targetFinalAmount;
   const progressPercent = requiredContribution === 0
     ? 100
     : Math.max(0, Math.min(100, (totalSaved / requiredContribution) * 100));
@@ -333,7 +335,6 @@ function renderSummary() {
 function updateConfigLockState() {
   const locked = Boolean(state.configLocked);
   els.monthlySaving.disabled = locked;
-  els.desiredTargetAmount.disabled = locked;
   els.projectionStepAmount.disabled = locked;
   els.maxMonthlySavingCap.disabled = locked;
 }
@@ -343,7 +344,6 @@ function bindGeneralInputs() {
     ['profileName', 'profileName'],
     ['initialAmount', 'initialAmount'],
     ['monthlySaving', 'monthlySaving'],
-    ['desiredTargetAmount', 'desiredTargetAmount'],
     ['projectionStepAmount', 'projectionStepAmount'],
     ['maxMonthlySavingCap', 'maxMonthlySavingCap']
   ];
@@ -369,7 +369,6 @@ function syncInputsFromState() {
   els.profileName.value = state.profileName;
   els.initialAmount.value = state.initialAmount;
   els.monthlySaving.value = state.monthlySaving;
-  els.desiredTargetAmount.value = state.desiredTargetAmount;
   els.projectionStepAmount.value = state.projectionStepAmount;
   els.maxMonthlySavingCap.value = state.maxMonthlySavingCap;
   updateConfigLockState();
@@ -430,7 +429,6 @@ async function saveProfile() {
     profileName: state.profileName,
     initialAmount: sanitizeNumber(state.initialAmount, 500),
     monthlySaving: sanitizeNumber(state.monthlySaving, 500),
-    desiredTargetAmount: sanitizeNumber(state.desiredTargetAmount, 6500),
     projectionStepAmount: sanitizeNumber(state.projectionStepAmount, 500, 100),
     maxMonthlySavingCap: getMaxCapValue(),
     targetMonths: 12,
