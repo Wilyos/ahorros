@@ -180,20 +180,18 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla: FILAS = Montos | COLUMNAS = Aboños (meses)
-  let tableHtml = '<thead><tr><th>Monto/mes</th><th>Total 12 meses</th>';
+  // Construir tabla: FILAS = Incrementos (montos) | COLUMNAS = Aboños
+  let tableHtml = '<thead><tr><th>Monto/Abono</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Abono ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
+  // Para cada monto (escenario), mostrar checkboxes para cada aboño (mes)
   scenarios.forEach((scenario, scenarioIdx) => {
     const monthlyLabel = scenarioIdx === 0 
       ? `${formatCurrency(scenario.monthlySaving)} (base)` 
       : formatCurrency(scenario.monthlySaving);
     
-    // Total si se ahorra este monto el mes completo
-    const totalFor12Months = scenario.monthlySaving * 12 + state.initialAmount;
-    
-    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td><td class="total-column">${formatCurrency(totalFor12Months)}</td>`;
+    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td>`;
     
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
       const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
