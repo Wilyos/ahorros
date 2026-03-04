@@ -397,7 +397,7 @@ async function loadProfile() {
   }
 
   Object.assign(state, payload.data || {});
-  state.maxMonthlySavingCap = sanitizeNumber(state.maxMonthlySavingCap, 200000, 100);
+  state.maxMonthlySavingCap = sanitizeNumber(state.maxMonthlySavingCap, 0, 0);
   normalizeMonthlyArrays();
   recalculateMonthlyActualsFromChecks();
   state.key = key;
