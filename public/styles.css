@@ -226,6 +226,7 @@ thead th {
   margin: 0;
   cursor: pointer;
   accent-color: var(--progress-fill);
+  flex-shrink: 0;
 }
 
 .radio-value {
@@ -237,6 +238,7 @@ thead th {
 
 .lock-indicator {
   margin-left: 2px;
+  font-size: 12px;
 }
 
 .scenario-label {

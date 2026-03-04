@@ -219,7 +219,7 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla de MESES en columnas, con radio buttons para cada escenario
+  // Construir tabla de MESES en columnas, con radio buttons para elegir UNO por mes
   let tableHtml = '<thead><tr><th>Ahorro mensual</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Mes ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
@@ -234,7 +234,8 @@ function renderProjectionTable() {
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
       const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
       const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
-      const inputId = `check_${scenarioIdx}_${monthIdx}`;
+      const radioName = `month_${monthIdx}`;
+      const inputId = `radio_${scenarioIdx}_${monthIdx}`;
       // Mostrar el monto mensual constante, ya que es lo que se suma
       const monthlyValue = scenario.monthlySaving;
       
@@ -243,7 +244,8 @@ function renderProjectionTable() {
           <label class="projection-check-label">
             <input 
               id="${inputId}"
-              type="checkbox"
+              type="radio"
+              name="${radioName}"
               data-scenario-idx="${scenarioIdx}" 
               data-month-idx="${monthIdx}" 
               ${checked ? 'checked' : ''} 
@@ -268,17 +270,22 @@ function renderProjectionTable() {
     els.projectionNote.textContent = `Generando escenarios respetando tope de ${formatCurrency(projectionData.maxCap)} para alcanzar objetivo de ${formatCurrency(projectionData.targetAmount)}.`;
   }
 
-  // Event listeners para los checkboxes
-  els.projectionTable.querySelectorAll('input[type="checkbox"][data-scenario-idx][data-month-idx]').forEach((input) => {
+  // Event listeners para los radio buttons
+  els.projectionTable.querySelectorAll('input[type="radio"][data-scenario-idx][data-month-idx]').forEach((input) => {
     input.addEventListener('change', (event) => {
       const scenarioIdx = Number(event.target.dataset.scenarioIdx);
       const monthIdx = Number(event.target.dataset.monthIdx);
       
-      // Con checkboxes, solo actualizar el estado sin limpiar otros
+      // Limpiar todos los radios de este mes (solo uno puede estar marcado)
+      state.scenarioChecks.forEach((row, idx) => {
+        if (row) row[monthIdx] = false;
+      });
+      
+      // Marcar solo el escenario seleccionado para este mes
       if (!state.scenarioChecks[scenarioIdx]) {
         state.scenarioChecks[scenarioIdx] = Array.from({ length: 12 }, () => false);
       }
-      state.scenarioChecks[scenarioIdx][monthIdx] = Boolean(event.target.checked);
+      state.scenarioChecks[scenarioIdx][monthIdx] = true;
       
       recalculateMonthlyActualsFromChecks();
       renderMonthlyActualInputs();
