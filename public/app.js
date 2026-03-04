@@ -370,7 +370,11 @@ function renderSummary() {
 }
 
 function updateConfigLockState() {
-  els.monthlySaving.disabled = Boolean(state.configLocked);
+  const locked = Boolean(state.configLocked);
+  els.monthlySaving.disabled = locked;
+  els.desiredTargetAmount.disabled = locked;
+  els.projectionStepAmount.disabled = locked;
+  els.maxMonthlySavingCap.disabled = locked;
 }
 
 function bindGeneralInputs() {
