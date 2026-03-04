@@ -136,27 +136,12 @@ function getEffectiveMonthlySaving() {
 function getProjectionScenarios() {
   const maxCap = getMaxCapValue();
   const baseMonthlySaving = sanitizeNumber(state.monthlySaving, 500, 0);
-  const targetAmount = sanitizeNumber(
-    state.desiredTargetAmount,
-    state.initialAmount + baseMonthlySaving * state.targetMonths,
-    0
-  );
   const stepAmount = sanitizeNumber(state.projectionStepAmount, 500, 100);
   const scenarios = [];
 
+  // Generar TODOS los incrementos desde base hasta máximo
   let currentMonthlySaving = baseMonthlySaving;
-  let isInCapPhase = false;
-  let scenariosGenerated = 0;
-  const maxRowsLimit = 15; // Límite máximo de filas para no generar demasiadas
-
-  // Generar escenarios hasta alcanzar objetivo, tope o límite de filas
-  while (scenariosGenerated < maxRowsLimit) {
-    // Si llegamos al tope, cambiar a fase de tope
-    if (currentMonthlySaving >= maxCap && !isInCapPhase) {
-      isInCapPhase = true;
-      currentMonthlySaving = maxCap;
-    }
-
+  while (currentMonthlySaving <= maxCap) {
     const monthlySavingToUse = Math.min(currentMonthlySaving, maxCap);
     const values = projectedByMonth(monthlySavingToUse);
     scenarios.push({
@@ -164,38 +149,14 @@ function getProjectionScenarios() {
       values
     });
 
-    const finalAmount = values[state.targetMonths - 1];
-
-    // Si alcanzamos el objetivo, parar
-    if (finalAmount >= targetAmount) {
-      break;
-    }
-
-    // Si no estamos en fase de tope, incrementar por el stepAmount
-    if (!isInCapPhase) {
-      currentMonthlySaving += stepAmount;
-      // Verificar si el siguiente valor superaría el tope
-      if (currentMonthlySaving > maxCap) {
-        isInCapPhase = true;
-        currentMonthlySaving = maxCap;
-      }
-    } else {
-      // Si estamos en fase de tope y ya tenemos una fila con el tope, parar
-      break;
-    }
-
-    scenariosGenerated += 1;
+    currentMonthlySaving += stepAmount;
   }
-
-  const lastScenario = scenarios[scenarios.length - 1];
-  const reachedTarget = Boolean(lastScenario) && lastScenario.values[state.targetMonths - 1] >= targetAmount;
 
   return {
     scenarios,
-    reachedTarget,
     maxCap,
-    targetAmount,
-    effectiveStepAmount: stepAmount
+    stepAmount,
+    baseMonthlySaving
   };
 }
 
@@ -219,9 +180,9 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla de MESES en columnas, con radio buttons para elegir UNO por mes
-  let tableHtml = '<thead><tr><th>Ahorro mensual</th>';
-  tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Mes ${i + 1}</th>`).join('');
+  // Construir tabla: FILAS = Montos | COLUMNAS = Aboños (meses)
+  let tableHtml = '<thead><tr><th>Monto/mes</th><th>Total 12 meses</th>';
+  tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Abono ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
   scenarios.forEach((scenario, scenarioIdx) => {
@@ -229,23 +190,23 @@ function renderProjectionTable() {
       ? `${formatCurrency(scenario.monthlySaving)} (base)` 
       : formatCurrency(scenario.monthlySaving);
     
-    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td>`;
+    // Total si se ahorra este monto el mes completo
+    const totalFor12Months = scenario.monthlySaving * 12 + state.initialAmount;
+    
+    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td><td class="total-column">${formatCurrency(totalFor12Months)}</td>`;
     
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
       const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
       const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
-      const radioName = `month_${monthIdx}`;
-      const inputId = `radio_${scenarioIdx}_${monthIdx}`;
-      // Mostrar el monto mensual constante, ya que es lo que se suma
+      const checkboxId = `check_${scenarioIdx}_${monthIdx}`;
       const monthlyValue = scenario.monthlySaving;
       
       tableHtml += `
         <td class="projection-check-cell">
           <label class="projection-check-label">
             <input 
-              id="${inputId}"
-              type="radio"
-              name="${radioName}"
+              id="${checkboxId}"
+              type="checkbox"
               data-scenario-idx="${scenarioIdx}" 
               data-month-idx="${monthIdx}" 
               ${checked ? 'checked' : ''} 
@@ -263,29 +224,20 @@ function renderProjectionTable() {
   tableHtml += '</tbody>';
   els.projectionTable.innerHTML = tableHtml;
 
-  // Mensaje sobre el objetivo
-  if (projectionData.reachedTarget) {
-    els.projectionNote.textContent = `Objetivo de ${formatCurrency(projectionData.targetAmount)} alcanzado. Tope mensual: ${formatCurrency(projectionData.maxCap)}.`;
-  } else {
-    els.projectionNote.textContent = `Generando escenarios respetando tope de ${formatCurrency(projectionData.maxCap)} para alcanzar objetivo de ${formatCurrency(projectionData.targetAmount)}.`;
-  }
+  // Mensaje sobre la configuración
+  const msgText = `Generando incrementos de ${formatCurrency(projectionData.stepAmount)} desde ${formatCurrency(projectionData.baseMonthlySaving)} hasta ${formatCurrency(projectionData.maxCap)}.`;
+  els.projectionNote.textContent = msgText;
 
-  // Event listeners para los radio buttons
-  els.projectionTable.querySelectorAll('input[type="radio"][data-scenario-idx][data-month-idx]').forEach((input) => {
+  // Event listeners para los checkboxes
+  els.projectionTable.querySelectorAll('input[type="checkbox"][data-scenario-idx][data-month-idx]').forEach((input) => {
     input.addEventListener('change', (event) => {
       const scenarioIdx = Number(event.target.dataset.scenarioIdx);
       const monthIdx = Number(event.target.dataset.monthIdx);
       
-      // Limpiar todos los radios de este mes (solo uno puede estar marcado)
-      state.scenarioChecks.forEach((row, idx) => {
-        if (row) row[monthIdx] = false;
-      });
-      
-      // Marcar solo el escenario seleccionado para este mes
       if (!state.scenarioChecks[scenarioIdx]) {
         state.scenarioChecks[scenarioIdx] = Array.from({ length: 12 }, () => false);
       }
-      state.scenarioChecks[scenarioIdx][monthIdx] = true;
+      state.scenarioChecks[scenarioIdx][monthIdx] = Boolean(event.target.checked);
       
       recalculateMonthlyActualsFromChecks();
       renderMonthlyActualInputs();
@@ -316,7 +268,7 @@ function renderMonthlyActualInputs() {
     return `
       <article class="month-input">
         <div class="month-header">
-          <span>Mes ${monthIdx + 1}</span>
+          <span>Abono ${monthIdx + 1}</span>
           <span class="month-lock">${hasLocked ? '🔒 Bloqueado' : checkedCount > 0 ? `${checkedCount} check(s)` : 'Sin marcar'}</span>
         </div>
         <div class="month-value">${formatCurrency(current)}</div>

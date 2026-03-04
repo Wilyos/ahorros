@@ -168,6 +168,13 @@ td:first-child {
   background: var(--sticky-bg);
 }
 
+.total-column {
+  font-weight: 600;
+  background: var(--check-row-bg);
+  position: sticky;
+  left: auto;
+}
+
 thead th {
   background: var(--header-bg);
 }
