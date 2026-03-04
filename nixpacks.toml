@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ['nodejs-22_x']
+
+[phases.install]
+cmds = ['npm ci']
+
+[start]
+cmd = 'node src/server.js'
+
+[variables]
+NODE_ENV = 'production'
