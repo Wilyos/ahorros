@@ -220,35 +220,36 @@ function renderProjectionTable() {
   }
 
   // Construir tabla de MESES en columnas, con radio buttons para cada escenario
-  let tableHtml = '<thead><tr><th>Monto Mensual</th>';
+  let tableHtml = '<thead><tr><th>Ahorro mensual</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Mes ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
   scenarios.forEach((scenario, scenarioIdx) => {
-    const rowLabel = scenarioIdx === 0 
+    const monthlyLabel = scenarioIdx === 0 
       ? `${formatCurrency(scenario.monthlySaving)} (base)` 
       : formatCurrency(scenario.monthlySaving);
     
-    tableHtml += `<tr><td class="scenario-label">${rowLabel}</td>`;
+    tableHtml += `<tr><td class="scenario-label">${monthlyLabel}</td>`;
     
     for (let monthIdx = 0; monthIdx < 12; monthIdx++) {
       const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
       const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
-      const inputId = `radio_${scenarioIdx}_${monthIdx}`;
+      const inputId = `check_${scenarioIdx}_${monthIdx}`;
+      // Mostrar el monto mensual constante, ya que es lo que se suma
+      const monthlyValue = scenario.monthlySaving;
       
       tableHtml += `
         <td class="projection-check-cell">
           <label class="projection-check-label">
             <input 
               id="${inputId}"
-              type="radio"
-              name="month_${monthIdx}"
+              type="checkbox"
               data-scenario-idx="${scenarioIdx}" 
               data-month-idx="${monthIdx}" 
               ${checked ? 'checked' : ''} 
               ${locked ? 'disabled' : ''} 
             />
-            <span class="radio-value">${formatCurrency(scenario.monthlySaving)}</span>
+            <span class="radio-value">${formatCurrency(monthlyValue)}</span>
             <span class="lock-indicator">${locked ? '🔒' : ''}</span>
           </label>
         </td>
@@ -267,22 +268,17 @@ function renderProjectionTable() {
     els.projectionNote.textContent = `Generando escenarios respetando tope de ${formatCurrency(projectionData.maxCap)} para alcanzar objetivo de ${formatCurrency(projectionData.targetAmount)}.`;
   }
 
-  // Event listeners para los radio buttons
-  els.projectionTable.querySelectorAll('input[type="radio"][data-scenario-idx][data-month-idx]').forEach((input) => {
+  // Event listeners para los checkboxes
+  els.projectionTable.querySelectorAll('input[type="checkbox"][data-scenario-idx][data-month-idx]').forEach((input) => {
     input.addEventListener('change', (event) => {
       const scenarioIdx = Number(event.target.dataset.scenarioIdx);
       const monthIdx = Number(event.target.dataset.monthIdx);
       
-      // Limpiar todos los checkboxes de este mes
-      state.scenarioChecks.forEach((row, idx) => {
-        if (row) row[monthIdx] = false;
-      });
-      
-      // Marcar solo el escenario seleccionado para este mes
+      // Con checkboxes, solo actualizar el estado sin limpiar otros
       if (!state.scenarioChecks[scenarioIdx]) {
         state.scenarioChecks[scenarioIdx] = Array.from({ length: 12 }, () => false);
       }
-      state.scenarioChecks[scenarioIdx][monthIdx] = true;
+      state.scenarioChecks[scenarioIdx][monthIdx] = Boolean(event.target.checked);
       
       recalculateMonthlyActualsFromChecks();
       renderMonthlyActualInputs();
