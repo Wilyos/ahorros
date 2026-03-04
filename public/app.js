@@ -180,12 +180,12 @@ function renderProjectionTable() {
     state.scenarioLocked.push(Array.from({ length: 12 }, () => false));
   }
 
-  // Construir tabla: FILAS = Incrementos (montos) | COLUMNAS = Aboños
-  let tableHtml = '<thead><tr><th>Monto/Abono</th>';
+  // Construir tabla: FILAS = Incrementos | COLUMNAS = Aboños con valores acumulativos
+  let tableHtml = '<thead><tr><th>Incremento/Abono</th>';
   tableHtml += Array.from({ length: 12 }, (_, i) => `<th>Abono ${i + 1}</th>`).join('');
   tableHtml += '</tr></thead><tbody>';
 
-  // Para cada monto (escenario), mostrar checkboxes para cada aboño (mes)
+  // Para cada monto (escenario), mostrar valores acumulativos para cada aboño
   scenarios.forEach((scenario, scenarioIdx) => {
     const monthlyLabel = scenarioIdx === 0 
       ? `${formatCurrency(scenario.monthlySaving)} (base)` 
@@ -197,7 +197,9 @@ function renderProjectionTable() {
       const checked = Boolean(state.scenarioChecks[scenarioIdx]?.[monthIdx]);
       const locked = Boolean(state.scenarioLocked[scenarioIdx]?.[monthIdx]);
       const checkboxId = `check_${scenarioIdx}_${monthIdx}`;
-      const monthlyValue = scenario.monthlySaving;
+      
+      // Valor ACUMULADO: monto mensual × (numero de aboños incluyendo este)
+      const accumulatedValue = scenario.monthlySaving * (monthIdx + 1) + state.initialAmount;
       
       tableHtml += `
         <td class="projection-check-cell">
@@ -210,7 +212,7 @@ function renderProjectionTable() {
               ${checked ? 'checked' : ''} 
               ${locked ? 'disabled' : ''} 
             />
-            <span class="radio-value">${formatCurrency(monthlyValue)}</span>
+            <span class="radio-value">${formatCurrency(accumulatedValue)}</span>
             <span class="lock-indicator">${locked ? '🔒' : ''}</span>
           </label>
         </td>
