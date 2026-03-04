@@ -213,7 +213,7 @@ function renderMonthlyActualInputs() {
   els.actualInputs.innerHTML = `
     <article class="month-input" style="grid-column: 1/-1">
       <div class="month-header">
-        <span>Aboños marcados</span>
+        <span>Abonos marcados</span>
         <span class="month-lock">${lockedCount > 0 ? `🔒 ${lockedCount} bloqueados` : ''}</span>
       </div>
       <div class="month-value">${formatCurrency(total)}</div>
